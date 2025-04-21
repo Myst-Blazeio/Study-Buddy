@@ -1,27 +1,29 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Summarizer",
+  "name": "Study Buddy",
+  "description": "Summarizer, Notes, and AI Tutor for YouTube videos.",
   "version": "1.0",
-  "description": "Summarizes YouTube video content into a quick PDF.",
-  "permissions": [
-    "activeTab",
-    "scripting"
-  ],
-  "host_permissions": [
-    "http://localhost:8080/*",
-    "https://www.youtube.com/*"
-  ],
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["*://www.youtube.com/*"],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/popup/popup.html",
     "default_icon": {
-      "16": "icon.png",
-      "48": "icon.png",
-      "128": "icon.png"
+      "128": "icons/icon128.png"
     }
   },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/watch*"],
+      "js": ["assets/content.js"]
+    }
+  ],
   "icons": {
-    "16": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
-  }
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }
