@@ -1,39 +1,49 @@
+// src/components/AuthPopup.jsx
 import React, { useState } from "react";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
-import ToolbarMenu from "./ToolbarMenu"; // <== NEW
+import { Box, Button, Typography, Paper } from "@mui/material";
 
-import { Box, Button, Typography } from "@mui/material";
-
-export default function AuthPopup() {
+const AuthPopup = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // <== NEW
-
-  if (isAuthenticated) {
-    return <ToolbarMenu />; // <== After login, show the toolbar
-  }
 
   return (
-    <Box
-      p={3}
-      display="flex"
-      flexDirection="column"
-      alignItems="center"
-      justifyContent="center"
-      width="100%"
-      minWidth={280}
+    <Paper
+      elevation={3}
+      sx={{
+        padding: 4,
+        width: "auto", // Adjust this for full width or set a specific width like '400px'
+        maxWidth: 500, // Max width of the popup, adjust as needed
+        height: "auto", // Adjust the height or set a fixed height (e.g., '500px')
+        maxHeight: 600, // Optional max height
+        margin: "auto",
+        mt: 5,
+        borderRadius: 2,
+        display: "flex",
+        flexDirection: "column",
+      }}
     >
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h4" textAlign="center" gutterBottom>
         {isLogin ? "Login" : "Sign Up"}
       </Typography>
+
       {isLogin ? (
-        <LoginForm onLoginSuccess={() => setIsAuthenticated(true)} />
+        <LoginForm onLoginSuccess={onLoginSuccess} />
       ) : (
-        <SignupForm onSignupSuccess={() => setIsAuthenticated(true)} />
+        <SignupForm onSignupSuccess={() => setIsLogin(true)} />
       )}
-      <Button fullWidth onClick={() => setIsLogin(!isLogin)} sx={{ mt: 2 }}>
-        {isLogin ? "Create an account" : "Back to Login"}
-      </Button>
-    </Box>
+
+      <Box mt={2} textAlign="center">
+        <Button
+          variant="text"
+          onClick={() => setIsLogin(!isLogin)}
+          sx={{ mt: 1 }}
+        >
+          {isLogin ? "Create an account" : "Already have an account? Login"}
+        </Button>
+      </Box>
+    </Paper>
   );
-}
+};
+
+export default AuthPopup;

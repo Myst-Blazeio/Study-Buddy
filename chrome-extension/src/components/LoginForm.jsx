@@ -1,46 +1,65 @@
-// /src/components/LoginForm.jsx
+// src/components/LoginForm.jsx
 import React, { useState } from "react";
-import { TextField, Button, Box } from "@mui/material";
+import { Box, TextField, Button, Typography, Alert } from "@mui/material";
 
-export default function LoginForm() {
-  const [email, setEmail] = useState("testuser@example.com");
-  const [password, setPassword] = useState("testpassword123");
+const LoginForm = ({ onLoginSuccess }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-  const handleLogin = () => {
-    if (email === "testuser@example.com" && password === "testpassword123") {
-      localStorage.setItem("loggedIn", "true");
+  const dummyEmail = "user@example.com";
+  const dummyPassword = "password";
 
-      // Notify the content script
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { type: "SHOW_TOOLBAR" });
-      });
-
-      alert("Login successful!");
-      window.close();
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (email === dummyEmail && password === dummyPassword) {
+      localStorage.setItem("isLoggedIn", "true");
+      onLoginSuccess();
     } else {
-      alert("Invalid credentials.");
+      setError("Invalid credentials. Please try again.");
     }
   };
 
   return (
-    <Box display="flex" flexDirection="column" gap={2} width="250px">
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        p: 2,
+        width: "100%",
+        maxWidth: 300,
+      }}
+    >
+      {/* <Typography variant="h5" textAlign="center">
+        Login
+      </Typography> */}
+
+      {error && <Alert severity="error">{error}</Alert>}
+
       <TextField
         label="Email"
         type="email"
-        fullWidth
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        required
+        fullWidth
       />
       <TextField
         label="Password"
         type="password"
-        fullWidth
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        required
+        fullWidth
       />
-      <Button variant="contained" onClick={handleLogin}>
+      <Button type="submit" variant="contained" color="primary" fullWidth>
         Login
       </Button>
     </Box>
   );
-}
+};
+
+export default LoginForm;

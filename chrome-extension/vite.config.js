@@ -4,15 +4,12 @@ import { resolve } from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  server: {
-    port: 3000
-  },
   build: {
     outDir: 'dist',
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, 'src/popup/popup.html'),
-        content: resolve(__dirname, 'src/content/contentScript.js')
+        popup: resolve(__dirname, 'popup.html'),
+        content: resolve(__dirname, 'src/content/contentScript.jsx')
       },
       output: {
         entryFileNames: 'assets/[name].js'
