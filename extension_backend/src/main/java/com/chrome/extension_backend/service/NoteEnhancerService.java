@@ -1,8 +1,8 @@
 package com.chrome.extension_backend.service;
 
-import org.springframework.stereotype.Service;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.net.HttpURLConnection;
@@ -10,12 +10,11 @@ import java.net.URI;
 import java.net.URL;
 
 @Service
-public class GoogleAISummarizerService {
+public class NoteEnhancerService {
 
     private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
     private static String API_KEY = "";
 
-    // Retry settings
     private static final int MAX_RETRIES = 3;
     private static final int INITIAL_BACKOFF_MS = 1000;
 
@@ -35,7 +34,7 @@ public class GoogleAISummarizerService {
         return apiKey;
     }
 
-    public String generateSummary(String inputText) {
+    public String enhanceNotes(String notes) {
         if (API_KEY.isEmpty()) {
             return "Error: API Key is missing!";
         }
@@ -53,8 +52,7 @@ public class GoogleAISummarizerService {
                 JSONObject requestBody = new JSONObject();
                 JSONArray contents = new JSONArray();
                 JSONObject part = new JSONObject();
-                part.put("text", "summarize this text extensively with an introduction: /n/n" + inputText
-                        + "/n/n use separate paragraphs and clear headings for main topics , followed by concise bullet points highlighting key details. Ensure the summary is well-organized and easy to skim. Do not use special characters or bold and italic text in the answer or response, instead make the points numbered:");
+                part.put("text", "Enhance and improve these notes in a structured, readable, and skimmable format. Use numbered points, avoid emojis, bold, or italics. Notes:\n\n" + notes);
                 JSONObject content = new JSONObject();
                 content.put("parts", new JSONArray().put(part));
                 contents.put(content);
@@ -89,24 +87,24 @@ public class GoogleAISummarizerService {
                     }
                 }
 
-                return "Error: No summary generated.";
+                return "Error: No enhanced notes returned.";
 
             } catch (IOException e) {
                 System.err.println("Attempt " + attempt + " failed: " + e.getMessage());
                 if (attempt == MAX_RETRIES) {
-                    return "Error generating summary: " + e.getMessage();
+                    return "Error enhancing notes: " + e.getMessage();
                 }
                 try {
-                    Thread.sleep(INITIAL_BACKOFF_MS * (long) Math.pow(2, attempt - 1)); // Exponential backoff
+                    Thread.sleep(INITIAL_BACKOFF_MS * (long) Math.pow(2, attempt - 1));
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    return "Error generating summary: interrupted during backoff";
+                    return "Error enhancing notes: interrupted during backoff";
                 }
             } catch (Exception e) {
-                return "Error generating summary: " + e.getMessage();
+                return "Error enhancing notes: " + e.getMessage();
             }
         }
 
-        return "Error: Failed to generate summary after retries.";
+        return "Error: Failed to enhance notes after retries.";
     }
 }
