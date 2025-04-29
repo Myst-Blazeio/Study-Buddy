@@ -14,7 +14,7 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**") // Match your API endpoint path
-                        .allowedOrigins("chrome-extension://mabbpoelgkflealjmliejhmeikpbeanl") // Or specify your extension ID origin in production
+                        .allowedOrigins("*") // Or specify your extension ID origin in production
                         .allowedMethods("GET", "POST")
                         .allowedHeaders("*");
             }

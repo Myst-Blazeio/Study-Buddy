@@ -26,6 +26,9 @@ public class VideoSummaryController {
     private final String OUTPUT_PATH = "output/summary.pdf";
     private final String DOWNLOAD_ENDPOINT = "/api/downloadSummary";
 
+    // 👉 Variable to store the generated summary
+    private String latestSummary = null;
+
     @PostMapping("/summarize")
     public ResponseEntity<String> summarizeVideo(@RequestBody VideoRequest request) {
         try {
@@ -40,6 +43,9 @@ public class VideoSummaryController {
             String transcription = transcriptionService.transcribeVideo(youtubeUrl);
             String summary = summarizerService.generateSummary(transcription);
 
+            // 👉 Save the latest summary for downloading
+            latestSummary = summary;
+
             pdfGenerationService.generatePDF(summary, OUTPUT_PATH);
 
             String downloadUrl = "http://localhost:8080" + DOWNLOAD_ENDPOINT;
@@ -52,16 +58,28 @@ public class VideoSummaryController {
         }
     }
 
-    // Endpoint to download the summary.pdf
     @GetMapping("/downloadSummary")
     public ResponseEntity<byte[]> downloadSummary() {
         try {
-            byte[] pdfBytes = pdfGenerationService.generatePDF("Auto-generated summary for download"); // Optional dummy or actual summary
+            if (latestSummary == null) {
+                return ResponseEntity.badRequest().body(null);
+            }
+
+            byte[] pdfBytes = pdfGenerationService.generatePDF(latestSummary);
+
+            // 👉 Delete the generated file after preparing the PDF
+            java.nio.file.Path path = java.nio.file.Paths.get(OUTPUT_PATH);
+            java.nio.file.Files.deleteIfExists(path);
+            latestSummary = null;
+            System.out.println("🧹 Deleted the generated PDF and cleared summary.");
+
             return ResponseEntity.ok()
                     .header("Content-Disposition", "attachment; filename=summary.pdf")
                     .body(pdfBytes);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.internalServerError().body(null);
         }
     }
+
 }

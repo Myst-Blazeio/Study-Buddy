@@ -12,76 +12,77 @@ import java.net.URL;
 @Service
 public class GoogleAISummarizerService {
 
-    private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent";
-    private static String API_KEY = "";
+	private static final String API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent";
+	private static String API_KEY = "";
 
-    static {
-        try {
-            API_KEY = loadApiKey();
-        } catch (Exception e) {
-            System.err.println("⚠️ Failed to load API key: " + e.getMessage());
-        }
-    }
+	static {
+		try {
+			API_KEY = loadApiKey();
+		} catch (Exception e) {
+			System.err.println("⚠️ Failed to load API key: " + e.getMessage());
+		}
+	}
 
-    // Load the API key from system properties
-    private static String loadApiKey() {
-        String apiKey = System.getProperty("GOOGLE_API_KEY");
+	// Load the API key from system properties
+	private static String loadApiKey() {
+		String apiKey = System.getProperty("GOOGLE_API_KEY");
 
-        if (apiKey == null || apiKey.isEmpty()) {
-            throw new RuntimeException("API Key is missing in system properties!");
-        }
+		if (apiKey == null || apiKey.isEmpty()) {
+			throw new RuntimeException("API Key is missing in system properties!");
+		}
 
-        return apiKey;
-    }
+		return apiKey;
+	}
 
-    public String generateSummary(String inputText) {
-        if (API_KEY.isEmpty()) {
-            return "Error: API Key is missing!";
-        }
-        try {
-            String apiUrlWithKey = API_URL + "?key=" + API_KEY;
-            URL url = URI.create(apiUrlWithKey).toURL();
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
+	public String generateSummary(String inputText) {
+		if (API_KEY.isEmpty()) {
+			return "Error: API Key is missing!";
+		}
+		try {
+			String apiUrlWithKey = API_URL + "?key=" + API_KEY;
+			URL url = URI.create(apiUrlWithKey).toURL();
+			HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+			conn.setRequestMethod("POST");
+			conn.setRequestProperty("Content-Type", "application/json");
+			conn.setDoOutput(true);
 
-            JSONObject requestBody = new JSONObject();
-            JSONArray contents = new JSONArray();
-            JSONObject part = new JSONObject();
-            part.put("text", "Summarize this text in 60 words or less:\n\n" + inputText + "end the summary with the word 'Eureka' in the end");
-            JSONObject content = new JSONObject();
-            content.put("parts", new JSONArray().put(part));
-            contents.put(content);
-            requestBody.put("contents", contents);
+			JSONObject requestBody = new JSONObject();
+			JSONArray contents = new JSONArray();
+			JSONObject part = new JSONObject();
+			part.put("text", "summarize this text extensively with an introduction: /n/n" + inputText
+					+ "/n/n use separate paragraphs and clear headings for main topics , followed by concise bullet points highlighting key details. Ensure the summary is well-organized and easy to skim. Do not use special characters or bold and italic text in the answer or response, instead make the points numbered:");
+			JSONObject content = new JSONObject();
+			content.put("parts", new JSONArray().put(part));
+			contents.put(content);
+			requestBody.put("contents", contents);
 
-            try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = requestBody.toString().getBytes("utf-8");
-                os.write(input, 0, input.length);
-            }
+			try (OutputStream os = conn.getOutputStream()) {
+				byte[] input = requestBody.toString().getBytes("utf-8");
+				os.write(input, 0, input.length);
+			}
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
-            }
+			BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "utf-8"));
+			StringBuilder response = new StringBuilder();
+			String line;
+			while ((line = reader.readLine()) != null) {
+				response.append(line);
+			}
 
-            JSONObject jsonResponse = new JSONObject(response.toString());
-            JSONArray candidates = jsonResponse.optJSONArray("candidates");
+			JSONObject jsonResponse = new JSONObject(response.toString());
+			JSONArray candidates = jsonResponse.optJSONArray("candidates");
 
-            if (candidates != null && candidates.length() > 0) {
-                JSONObject candidate = candidates.getJSONObject(0);
-                JSONObject contentResponse = candidate.optJSONObject("content");
-                JSONArray parts = contentResponse.optJSONArray("parts");
+			if (candidates != null && candidates.length() > 0) {
+				JSONObject candidate = candidates.getJSONObject(0);
+				JSONObject contentResponse = candidate.optJSONObject("content");
+				JSONArray parts = contentResponse.optJSONArray("parts");
 
-                if (parts != null && parts.length() > 0) {
-                    return parts.getJSONObject(0).getString("text");
-                }
-            }
-            return "Error: No summary generated.";
-        } catch (Exception e) {
-            return "Error generating summary: " + e.getMessage();
-        }
-    }
+				if (parts != null && parts.length() > 0) {
+					return parts.getJSONObject(0).getString("text");
+				}
+			}
+			return "Error: No summary generated.";
+		} catch (Exception e) {
+			return "Error generating summary: " + e.getMessage();
+		}
+	}
 }
