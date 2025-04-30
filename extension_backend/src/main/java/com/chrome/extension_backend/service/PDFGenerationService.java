@@ -17,7 +17,18 @@ import java.io.IOException;
 @Service
 public class PDFGenerationService {
 
-    // Method to generate PDF on the disk (saving to file system)
+    private String currentNote; // Holds the latest saved note
+
+    public void setCurrentNote(String note) {
+        this.currentNote = note;
+        System.out.println("[DEBUG] Current note set in PDFGenerationService:\n" + note);
+    }
+
+    public String getCurrentNote() {
+        return this.currentNote;
+    }
+
+    // File-based PDF generation
     public void generatePDF(String summary, String filePath) {
         File file = new File(filePath);
         file.getParentFile().mkdirs();
@@ -29,25 +40,18 @@ public class PDFGenerationService {
             PdfFont normalFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
             PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
 
-            Paragraph headingParagraph = new Paragraph("Lecture Summary")
-                    .setFont(boldFont)
-                    .setFontSize(18)
-                    .setTextAlignment(TextAlignment.CENTER);
+            addSummaryAndNotes(document, summary, boldFont, normalFont);
 
-            Paragraph bodyParagraph = new Paragraph(summary)
-                    .setFont(normalFont)
-                    .setFontSize(12)
-                    .setTextAlignment(TextAlignment.JUSTIFIED);
+            document.close();
 
-            document.add(headingParagraph);
-            document.add(bodyParagraph);
+            
 
         } catch (IOException e) {
             throw new RuntimeException("❌ Error generating PDF: " + e.getMessage());
         }
     }
 
-    // Method to generate PDF in memory and return bytes (for download response)
+    // In-memory PDF generation
     public byte[] generatePDF(String summary) {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
             PdfWriter writer = new PdfWriter(byteArrayOutputStream);
@@ -57,24 +61,48 @@ public class PDFGenerationService {
             PdfFont normalFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
             PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
 
-            Paragraph headingParagraph = new Paragraph("Lecture Summary")
+            addSummaryAndNotes(document, summary, boldFont, normalFont);
+
+            document.close();
+
+         
+            return byteArrayOutputStream.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException("❌ Error generating PDF: " + e.getMessage());
+        }
+    }
+
+    // Shared method to add both summary and note
+    private void addSummaryAndNotes(Document document, String summary, PdfFont boldFont, PdfFont normalFont) {
+        // Lecture Summary section
+        Paragraph headingParagraph = new Paragraph("Lecture Summary")
+                .setFont(boldFont)
+                .setFontSize(18)
+                .setTextAlignment(TextAlignment.CENTER);
+
+        Paragraph bodyParagraph = new Paragraph(summary)
+                .setFont(normalFont)
+                .setFontSize(12)
+                .setTextAlignment(TextAlignment.JUSTIFIED);
+
+        document.add(headingParagraph);
+        document.add(bodyParagraph);
+
+        // My Notes section
+        if (currentNote != null && !currentNote.trim().isEmpty()) {
+            Paragraph noteHeader = new Paragraph("My Notes")
                     .setFont(boldFont)
                     .setFontSize(18)
+                    .setMarginTop(20)
                     .setTextAlignment(TextAlignment.CENTER);
 
-            Paragraph bodyParagraph = new Paragraph(summary)
+            Paragraph noteBody = new Paragraph(currentNote)
                     .setFont(normalFont)
                     .setFontSize(12)
                     .setTextAlignment(TextAlignment.JUSTIFIED);
 
-            document.add(headingParagraph);
-            document.add(bodyParagraph);
-
-            document.close();
-
-            return byteArrayOutputStream.toByteArray(); // Return PDF as byte array
-        } catch (IOException e) {
-            throw new RuntimeException("❌ Error generating PDF: " + e.getMessage());
+            document.add(noteHeader);
+            document.add(noteBody);
         }
     }
 }

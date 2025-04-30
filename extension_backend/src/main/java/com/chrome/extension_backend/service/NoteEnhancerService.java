@@ -52,7 +52,7 @@ public class NoteEnhancerService {
                 JSONObject requestBody = new JSONObject();
                 JSONArray contents = new JSONArray();
                 JSONObject part = new JSONObject();
-                part.put("text", "Enhance and improve these notes in a structured, readable, and skimmable format. Use numbered points, avoid emojis, bold, or italics. Notes:\n\n" + notes);
+                part.put("text", "Enhance and improve these notes in a structured, readable, and skimmable format. Use numbered points, avoid emojis, bold, or italics. Notes:\n\n" + notes +"\n\n if the notes is in a different language then return the answer in that langauge");
                 JSONObject content = new JSONObject();
                 content.put("parts", new JSONArray().put(part));
                 contents.put(content);
