@@ -18,6 +18,7 @@ public class NoteTaker {
 	public ResponseEntity<String> saveNotes(@RequestBody NotesDto dto) {
     	if (dto.getNotes() == null || dto.getNotes().trim().isEmpty()) {
             System.out.println("[WARN] Empty note received in /save endpoint.");
+            pdfGenerationService.setCurrentNote(null);
             return ResponseEntity.badRequest().body("❌ Notes cannot be empty.");
         }
 

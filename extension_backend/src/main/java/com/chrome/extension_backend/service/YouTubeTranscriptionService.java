@@ -94,6 +94,7 @@ public class YouTubeTranscriptionService {
             }
 
             process.waitFor();
+            System.out.println("The transcribed text:"+transcription.toString().trim());
             return transcription.toString().trim();
         } catch (Exception e) {
             e.printStackTrace();
