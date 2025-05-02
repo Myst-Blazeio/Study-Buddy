@@ -27,30 +27,6 @@ public class PDFGenerationService {
     public String getCurrentNote() {
         return this.currentNote;
     }
-
-    // File-based PDF generation
-    public void generatePDF(String summary, String filePath) {
-        File file = new File(filePath);
-        file.getParentFile().mkdirs();
-
-        try (PdfWriter writer = new PdfWriter(filePath);
-             PdfDocument pdf = new PdfDocument(writer);
-             Document document = new Document(pdf)) {
-
-            PdfFont normalFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
-            PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
-
-            addSummaryAndNotes(document, summary, boldFont, normalFont);
-
-            document.close();
-
-            
-
-        } catch (IOException e) {
-            throw new RuntimeException("❌ Error generating PDF: " + e.getMessage());
-        }
-    }
-
     // In-memory PDF generation
     public byte[] generatePDF(String summary) {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {

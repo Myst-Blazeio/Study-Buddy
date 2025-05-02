@@ -46,8 +46,6 @@ public class VideoSummaryController {
             // 👉 Save the latest summary for downloading
             latestSummary = summary;
 
-            pdfGenerationService.generatePDF(summary, OUTPUT_PATH);
-
             String downloadUrl = "http://localhost:8080" + DOWNLOAD_ENDPOINT;
             System.out.println("📄 Summary PDF available at: " + downloadUrl);
 
