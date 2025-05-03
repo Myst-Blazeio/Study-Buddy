@@ -1,52 +1,43 @@
-#!/usr/bin/env python3
-
-import sys
+import json
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api.formatters import TextFormatter
-from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
-import pycountry
 
-def get_language_name(lang_code):
-    try:
-        return pycountry.languages.get(alpha_2=lang_code).name
-    except:
-        return lang_code  # fallback
+# Replace with your video ID
+video_id = "Uk2p373Ac1U"
 
-def fetch_and_display_transcript(video_id: str):
-    try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+try:
+    # Get available transcripts for the video
+    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+    
+    # Initialize a list to store all transcripts
+    all_transcripts = []
 
-        # Iterate over available transcripts
-        for transcript in transcript_list:
-            lang_code = transcript.language_code
-            lang_name = get_language_name(lang_code)
-
-            try:
-                fetched = transcript.fetch()
-                formatter = TextFormatter()
-                formatted_transcript = formatter.format_transcript(fetched)
-
-                print(f"--- Transcript Language: {lang_name} ({lang_code}) ---\n")
-                print(formatted_transcript)
-                return
-            except Exception as e:
-                continue
-
-        print("❌ No usable transcript found in any language.")
-
-    except NoTranscriptFound:
-        print("❌ No transcripts found for this video.")
-    except TranscriptsDisabled:
-        print("❌ Transcripts are disabled for this video.")
-    except VideoUnavailable:
-        print("❌ The video is unavailable.")
-    except Exception as e:
-        print(f"❌ An unexpected error occurred: {e}")
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python transcript_text.py <YouTubeVideoID>")
-        sys.exit(1)
-
-    video_id = sys.argv[1]
-    fetch_and_display_transcript(video_id)
+    # Iterate through all available transcripts
+    for transcript_metadata in transcript_list:
+        language = transcript_metadata.language
+        language_code = transcript_metadata.language_code
+        
+        # Fetch the transcript
+        transcript = transcript_metadata.fetch()
+        
+        # Convert the transcript to a JSON-serializable format
+        transcript_serializable = [{"text": snippet.text, "start": snippet.start, "duration": snippet.duration} for snippet in transcript]
+        
+        # Add the transcript and its metadata to the list
+        all_transcripts.append({
+            "language": language,
+            "language_code": language_code,
+            "transcript": transcript_serializable
+        })
+    
+    # Save all transcripts to a JSON file
+    output = {
+        "video_id": video_id,
+        "transcripts": all_transcripts
+    }
+    
+    with open("all_transcripts.json", "w", encoding="utf-8") as json_file:
+        json.dump(output, json_file, ensure_ascii=False, indent=4)
+    
+    print("All transcripts saved to all_transcripts.json.")
+except Exception as e:
+    print(f"An error occurred: {e}")
