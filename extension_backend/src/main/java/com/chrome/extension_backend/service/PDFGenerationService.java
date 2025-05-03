@@ -11,7 +11,6 @@ import com.itextpdf.layout.properties.TextAlignment;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 
 @Service
@@ -27,6 +26,7 @@ public class PDFGenerationService {
     public String getCurrentNote() {
         return this.currentNote;
     }
+
     // In-memory PDF generation
     public byte[] generatePDF(String summary) {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream()) {
@@ -41,7 +41,6 @@ public class PDFGenerationService {
 
             document.close();
 
-         
             return byteArrayOutputStream.toByteArray();
         } catch (IOException e) {
             throw new RuntimeException("❌ Error generating PDF: " + e.getMessage());
