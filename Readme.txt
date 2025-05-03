@@ -1,21 +1,62 @@
+# Eva - Your Study Buddy Chrome Extension for YouTube
 
+Eva is a Chrome extension designed to enhance your YouTube study sessions with a suite of powerful tools:
 
+## Features
+1. **AI Tutor**: Integrated chatbot to resolve real-time doubts and queries during study sessions.
+2. **Quick Notes**: Take manual notes and enhance them using the built-in notes enhancement feature.
+3. **Video Summarizer**: Summarize entire videos into study notes and download them as a PDF.
 
-Use requirements.txt for installing .venv =>  pip install -r requirements.txt  
-create a .env file for google api GOOGLE_API_KEY="your_gemini_api_key"
-install node modules: npm install
+---
 
-Steps to make this work:
-1.cd extension-frontend 
-npm install
-npm run build
+## Getting Started
 
-2. Open Eclispe IDE and import extension-backend as existing maven project
-3. run the spring boot application to run the server
+Follow these steps to set up and run the project:
 
-4. Go to extensions tab in google chrome and toggle developer mode "on"
-5. Click load unpacked and select the dist folder under extension-frontend
-6. Enable the extension in the extensions tab
-7. Go to youtube.com and click on a video
-8. Click the extension
-9. Enjoy!!
+### Prerequisites
+- Install dependencies using `requirements.txt`:
+    ```bash
+    pip install -r requirements.txt
+    ```
+- Create a `.env` file and add your Google API key:
+    ```plaintext
+    GOOGLE_API_KEY="your_gemini_api_key"
+    ```
+- Install Node.js dependencies:
+    ```bash
+    npm install
+    ```
+
+---
+
+### Steps to Run
+
+1. **Frontend Setup**:
+     - Navigate to the `extension-frontend` directory:
+         ```bash
+         cd extension-frontend
+         ```
+     - Install dependencies and build the project:
+         ```bash
+         npm install
+         npm run build
+         ```
+
+2. **Backend Setup**:
+     - Open Eclipse IDE and import the `extension-backend` as an existing Maven project.
+     - Run the Spring Boot application to start the server.
+
+3. **Load the Extension in Chrome**:
+     - Open the Chrome browser and go to the Extensions tab.
+     - Toggle **Developer Mode** to "ON".
+     - Click **Load Unpacked** and select the `dist` folder under `extension-frontend`.
+     - Enable the extension in the Extensions tab.
+
+4. **Using the Extension**:
+     - Go to [YouTube](https://www.youtube.com) and play a video.
+     - Click on the Eva extension icon.
+     - Start enjoying the features!
+
+---
+
+## Enjoy Learning with Eva!
