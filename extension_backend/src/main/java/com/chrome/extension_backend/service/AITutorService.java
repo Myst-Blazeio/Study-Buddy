@@ -54,7 +54,7 @@ public class AITutorService {
                 JSONArray contents = new JSONArray();
                 JSONObject part = new JSONObject();
                 part.put("text", "Answer this user's question in a helpful and concise way: \n\n" + question
-                        + " Ensure the summary is well-organized and easy to skim. Do not use special characters or bold and italic text in the answer or response, instead make the points numbered:");
+                        + " Ensure the summary is well-organized and easy to skim. Do not use special characters such as [*,#,~,-] or bold and italic text in the final answer, instead make the points numbered:");
                 JSONObject content = new JSONObject();
                 content.put("parts", new JSONArray().put(part));
                 contents.put(content);

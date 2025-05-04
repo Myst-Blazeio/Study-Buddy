@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "@emotion/styled";
 import {
   Box,
@@ -13,6 +13,8 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { askTutorAndGetAnswer } from "../../util/DiagonalButton.util"; // Adjust path if needed
+import VolumeUpIcon from "@mui/icons-material/VolumeUp";
+import VolumeOffIcon from "@mui/icons-material/VolumeOff";
 
 // Styled Components
 const FloatingBox = styled(Paper)({
@@ -108,6 +110,61 @@ const FloatingAIChat = () => {
   const [question, setQuestion] = useState(null);
   const [answer, setAnswer] = useState(null);
   const [visible, setVisible] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const synthRef = useRef(window.speechSynthesis);
+
+  const speakText = (text) => {
+    const synth = synthRef.current;
+
+    if (!text) return;
+
+    // If already speaking, stop and toggle off
+    if (isSpeaking) {
+      synth.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    // Split into smaller chunks by sentence
+    const sentences = text.match(/[^.!?]+[.!?]*|\s+/g)?.filter(Boolean) || [];
+    const maxChunkSize = 180;
+    const chunks = [];
+
+    let chunk = "";
+    for (const sentence of sentences) {
+      if ((chunk + sentence).length > maxChunkSize) {
+        chunks.push(chunk.trim());
+        chunk = sentence;
+      } else {
+        chunk += sentence;
+      }
+    }
+    if (chunk.trim()) chunks.push(chunk.trim());
+
+    let index = 0;
+
+    const speakChunk = () => {
+      if (index >= chunks.length) {
+        setIsSpeaking(false);
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(chunks[index]);
+      utterance.onend = () => {
+        index++;
+        speakChunk(); // Speak the next chunk
+      };
+      utterance.onerror = () => {
+        console.error("Speech error on chunk:", index);
+        setIsSpeaking(false);
+      };
+
+      synth.speak(utterance);
+    };
+
+    setIsSpeaking(true);
+    speakChunk();
+  };
 
   useEffect(() => {
     const savedQ = localStorage.getItem("lastQuestion");
@@ -138,6 +195,9 @@ const FloatingAIChat = () => {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(answer);
+  };
+  const handleCopyQuestion = () => {
+    navigator.clipboard.writeText(question);
   };
 
   const handleReset = () => {
@@ -171,26 +231,75 @@ const FloatingAIChat = () => {
 
       <MessageContainer>
         {question && (
-          <QuestionBubble sx={{ fontSize: "medium" }}>
-            {question}
-          </QuestionBubble>
-        )}
-        {answer && (
-          <AnswerBox>
-            <Tooltip title="Copy Answer">
+          <QuestionBubble
+            sx={{
+              fontSize: "medium",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "8px",
+            }}
+          >
+            <Tooltip title="Copy Question">
               <IconButton
                 size="small"
-                onClick={handleCopy}
+                onClick={handleCopyQuestion}
                 sx={{
-                  backgroundColor: "#e3f2fd",
+                  backgroundColor: "#ffffffdc",
+                  color: "#8d8d8d",
                   padding: "4px",
-                  height: "28px",
-                  width: "28px",
+                  height: "24px",
+                  width: "24px",
+                  alignSelf: "flex-start",
+                  marginTop: "2px",
                 }}
               >
                 <ContentCopyIcon fontSize="inherit" />
               </IconButton>
             </Tooltip>
+            <Box sx={{ flex: 1, whiteSpace: "pre-wrap" }}>{question}</Box>
+          </QuestionBubble>
+        )}
+        {answer && (
+          <AnswerBox>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <Tooltip title="Copy Answer">
+                <IconButton
+                  size="small"
+                  onClick={handleCopy}
+                  sx={{
+                    backgroundColor: "#e3f2fd",
+                    padding: "4px",
+                    height: "28px",
+                    width: "28px",
+                  }}
+                >
+                  <ContentCopyIcon fontSize="inherit" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={isSpeaking ? "Stop Speaking" : "Speak Answer"}>
+                <IconButton
+                  size="small"
+                  onClick={() => speakText(answer)}
+                  sx={{
+                    backgroundColor: "#e3f2fd",
+                    padding: "4px",
+                    height: "28px",
+                    width: "28px",
+                    color: "#8d8d8d",
+                    "&:hover": {
+                      backgroundColor: "#bbdefb",
+                    },
+                  }}
+                >
+                  {isSpeaking ? (
+                    <VolumeOffIcon fontSize="small" />
+                  ) : (
+                    <VolumeUpIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            </Box>
+
             <Typography
               variant="body2"
               sx={{ whiteSpace: "pre-wrap", fontSize: "medium" }}

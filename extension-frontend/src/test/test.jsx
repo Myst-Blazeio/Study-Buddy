@@ -1,326 +1,345 @@
-// src/window/NotesPanel.jsx
-import React, {
-  useState,
-  useEffect,
-  useImperativeHandle,
-  forwardRef,
-} from "react";
+import React, { useState, useEffect, useRef } from "react";
+import styled from "@emotion/styled";
 import {
   Box,
-  Paper,
   Typography,
   IconButton,
   TextField,
-  Button,
-  Snackbar,
-  Alert,
-  Slide,
   Tooltip,
+  Paper,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import SaveIcon from "@mui/icons-material/Save";
-import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import UndoIcon from "@mui/icons-material/Undo";
+import SendIcon from "@mui/icons-material/Send";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import styled from "@emotion/styled";
-import { useNotesPanel } from "../../util/LeftButton.util";
-import { baseAPIurl } from "../../config";
+import CloseIcon from "@mui/icons-material/Close";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import { askTutorAndGetAnswer } from "../../util/DiagonalButton.util"; // Adjust path if needed
+import VolumeUpIcon from "@mui/icons-material/VolumeUp";
+import VolumeOffIcon from "@mui/icons-material/VolumeOff";
 
-const FloatingNotesBox = styled(Paper)({
+// Styled Components
+const FloatingBox = styled(Paper)({
   position: "fixed",
   bottom: "100px",
-  left: "75%",
+  left: "50%",
   transform: "translateX(-50%)",
-  width: "320px",
-  height: "440px",
-  background: "linear-gradient(145deg, #e6f0ff, #ffffff)",
-  borderRadius: "24px",
-  boxShadow: "0 10px 40px rgba(0, 89, 255, 0.25)",
+  width: "420px",
+  background: "linear-gradient(135deg, #e3f2fd, #bbdefb)",
+  borderRadius: "16px",
+  boxShadow: "0 8px 30px rgba(0, 123, 255, 0.2)",
+  overflow: "hidden",
   zIndex: 9999,
   display: "flex",
   flexDirection: "column",
-  overflow: "hidden",
 });
 
 const Header = styled(Box)({
-  background: "linear-gradient(to right, #0d47a1, #1976d2)",
+  background: "#0d47a1",
   color: "white",
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  padding: "14px 18px",
-  fontWeight: 600,
+  padding: "12px 16px",
 });
 
-const NoteAreaWrapper = styled(Box)({
-  position: "relative",
-  flexGrow: 1,
-  padding: "12px 16px",
+const HeaderButtons = styled(Box)({
+  display: "flex",
+  gap: "8px",
+});
+
+const MessageContainer = styled(Box)({
+  flex: 1,
+  overflowY: "auto",
+  padding: "16px",
   display: "flex",
   flexDirection: "column",
+  gap: "16px",
+  maxHeight: "280px",
 });
 
-const NoteField = styled(TextField)({
-  width: "100%",
-  height: "100%",
-  overflowY: "auto",
-  "& .MuiInputBase-root": {
-    height: "100%",
-    fontSize: "14px",
-    backgroundColor: "#f0f7ff",
-    borderRadius: "16px",
-    padding: "12px",
-    alignItems: "flex-start",
-  },
-  "& textarea": {
-    height: "100% !important",
-    overflowY: "auto !important",
-  },
-});
-
-const EnhanceButton = styled(IconButton)(({ disabled }) => ({
-  position: "absolute",
-  bottom: 18,
-  right: 22,
-  backgroundColor: "#ffffffdd",
-  borderRadius: "50%",
-  boxShadow: "0 4px 10px rgba(0,0,0,0.2)",
-  opacity: disabled ? 0.4 : 1,
-  pointerEvents: disabled ? "none" : "auto",
-  "&:hover": {
-    backgroundColor: "#e3f2fd",
-  },
-}));
-
-const Footer = styled(Box)({
+const AnswerBox = styled(Box)({
   display: "flex",
-  justifyContent: "flex-end",
-  alignItems: "center",
-  padding: "14px 18px",
-  borderTop: "1px solid #d0d0d0",
-  backgroundColor: "#f8fbff",
+  alignItems: "flex-start",
+  gap: "8px",
+  background: "#ffffff",
+  borderRadius: "12px",
+  padding: "10px 14px",
+  color: "#0d47a1",
+  maxWidth: "90%",
+  boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+  overflowWrap: "anywhere",
 });
 
-const NotesPanel = forwardRef(({ onClose }, ref) => {
-  const { notes, setNotes, enhanceNote, triggerSnackbar } = useNotesPanel();
-  const [isSaved, setIsSaved] = useState(true);
-  const [lastSavedNote, setLastSavedNote] = useState("");
+const QuestionBubble = styled(Box)({
+  alignSelf: "flex-end",
+  background: "linear-gradient(to right, #42a5f5, #1e88e5)",
+  color: "white",
+  padding: "10px 14px",
+  borderRadius: "12px",
+  maxWidth: "80%",
+  whiteSpace: "pre-wrap",
+  boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+  overflowWrap: "anywhere",
+});
 
-  useEffect(() => {
-    const storedNote = localStorage.getItem("userNote") || "";
-    setNotes(storedNote);
-    setLastSavedNote(storedNote);
-  }, [setNotes]);
+const InputSection = styled(Box)({
+  display: "flex",
+  padding: "12px 16px",
+  borderTop: "1px solid #ccc",
+  alignItems: "flex-end",
+  gap: "8px",
+});
 
-  useEffect(() => {
-    return () => {
-      localStorage.setItem("userNote", notes);
-    };
-  }, [notes]);
+const InputField = styled(TextField)({
+  background: "white",
+  borderRadius: "8px",
+  maxHeight: "100px",
+  overflowY: "auto",
+  flexGrow: 1,
+  "& .MuiInputBase-root": {
+    fontSize: "medium", // Input text size
+  },
+  "& input::placeholder, & textarea::placeholder": {
+    fontSize: "medium",
+    color: "gray", // <-- Set placeholder color to gray
+    opacity: 1,
+  },
+});
 
-  const handleSave = async () => {
-    if (notes.trim() === lastSavedNote.trim()) return;
+const FloatingAIChat = () => {
+  const [input, setInput] = useState("");
+  const [question, setQuestion] = useState(null);
+  const [answer, setAnswer] = useState(null);
+  const [visible, setVisible] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const synthRef = useRef(window.speechSynthesis);
 
-    try {
-      localStorage.setItem("userNote", notes);
-      setIsSaved(true);
-      setLastSavedNote(notes);
+  const speakText = (text) => {
+    const synth = synthRef.current;
 
-      const response = await fetch(`${baseAPIurl}api/notes/current`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ notes }),
-      });
+    if (!text) return;
 
-      if (response.ok) {
-        triggerSnackbar(`✅ Note saved to backend!`, "success");
-      } else {
-        const error = await response.text();
-        triggerSnackbar(`❌ Failed to save note: ${error}`, "error");
-      }
-    } catch (err) {
-      triggerSnackbar("🚫 Error saving note to backend.", "error");
-    }
-  };
-
-  const handleReset = async () => {
-    setNotes("");
-    setIsSaved(false);
-
-    try {
-      localStorage.setItem("userNote", "");
-      await fetch(`${baseAPIurl}api/notes/current`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: "" }),
-      });
-      triggerSnackbar("🧹 Note reset successfully!", "success");
-    } catch (err) {
-      triggerSnackbar("🚫 Error resetting note.", "error");
-    }
-  };
-
-  const handleUndo = () => {
-    setNotes(lastSavedNote);
-    setIsSaved(true);
-    triggerSnackbar("↩️ Note restored to last saved version.", "info");
-  };
-
-  const handleChange = (e) => {
-    setNotes(e.target.value);
-    setIsSaved(e.target.value === lastSavedNote);
-  };
-
-  const handleEnhanceButtonClick = async () => {
-    if (!notes.trim()) {
-      triggerSnackbar("Cannot enhance empty note.", "warning");
+    // If already speaking, stop and toggle off
+    if (isSpeaking) {
+      synth.cancel();
+      setIsSpeaking(false);
       return;
     }
-    try {
-      const enhanced = await enhanceNote(notes);
-      if (enhanced) {
-        setNotes(enhanced);
-        setIsSaved(false);
-        triggerSnackbar("✨ Note enhanced!", "success");
+
+    // Split into smaller chunks by sentence
+    const sentences = text.match(/[^.!?]+[.!?]*|\s+/g)?.filter(Boolean) || [];
+    const maxChunkSize = 180;
+    const chunks = [];
+
+    let chunk = "";
+    for (const sentence of sentences) {
+      if ((chunk + sentence).length > maxChunkSize) {
+        chunks.push(chunk.trim());
+        chunk = sentence;
       } else {
-        triggerSnackbar("No enhancement received.", "info");
+        chunk += sentence;
       }
-    } catch (error) {
-      triggerSnackbar("Failed to enhance note.", "error");
     }
+    if (chunk.trim()) chunks.push(chunk.trim());
+
+    let index = 0;
+
+    const speakChunk = () => {
+      if (index >= chunks.length) {
+        setIsSpeaking(false);
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(chunks[index]);
+      utterance.onend = () => {
+        index++;
+        speakChunk(); // Speak the next chunk
+      };
+      utterance.onerror = () => {
+        console.error("Speech error on chunk:", index);
+        setIsSpeaking(false);
+      };
+
+      synth.speak(utterance);
+    };
+
+    setIsSpeaking(true);
+    speakChunk();
   };
 
-  const handleCopy = async () => {
+  useEffect(() => {
+    const savedQ = localStorage.getItem("lastQuestion");
+    const savedA = localStorage.getItem("lastAnswer");
+    if (savedQ && savedA) {
+      setQuestion(savedQ);
+      setAnswer(savedA);
+    }
+  }, []);
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const currentQuestion = input;
+    setInput("");
+    setQuestion(currentQuestion);
+    setAnswer("...");
+
     try {
-      await navigator.clipboard.writeText(notes);
-      triggerSnackbar("📋 Note copied to clipboard!", "success");
-    } catch (err) {
-      triggerSnackbar("🚫 Failed to copy note.", "error");
+      const generatedAnswer = await askTutorAndGetAnswer(currentQuestion);
+      setAnswer(generatedAnswer);
+      localStorage.setItem("lastQuestion", currentQuestion);
+      localStorage.setItem("lastAnswer", generatedAnswer);
+    } catch (error) {
+      setAnswer("There was an error getting the answer.");
     }
   };
 
-  useImperativeHandle(ref, () => ({
-    saveBeforeClose: handleSave,
-  }));
+  const handleCopy = () => {
+    navigator.clipboard.writeText(answer);
+  };
+  const handleCopyQuestion = () => {
+    navigator.clipboard.writeText(question);
+  };
 
-  const isNoteEmpty = !notes.trim();
-  const canUndo = notes !== lastSavedNote;
+  const handleReset = () => {
+    setQuestion(null);
+    setAnswer(null);
+    localStorage.removeItem("lastQuestion");
+    localStorage.removeItem("lastAnswer");
+  };
+
+  if (!visible) return null;
 
   return (
-    <FloatingNotesBox elevation={6}>
+    <FloatingBox elevation={6}>
       <Header>
         <Typography variant="subtitle1" sx={{ fontSize: "medium" }}>
-          Quick Notes
+          AI Tutor
         </Typography>
-        <Box>
-          <Tooltip title="Undo to last saved note">
-            <span>
-              <IconButton size="small" onClick={handleUndo} disabled={!canUndo}>
-                <UndoIcon sx={{ color: "white", opacity: canUndo ? 1 : 0.4 }} />
-              </IconButton>
-            </span>
+        <HeaderButtons>
+          <Tooltip title="Reset Chat">
+            <IconButton onClick={handleReset} size="small">
+              <RefreshIcon sx={{ color: "white" }} />
+            </IconButton>
           </Tooltip>
-          <Tooltip title="Clear note">
-            <span>
-              <IconButton
-                size="small"
-                onClick={handleReset}
-                disabled={isNoteEmpty}
-              >
-                <RestartAltIcon
-                  sx={{ color: "white", opacity: isNoteEmpty ? 0.4 : 1 }}
-                />
-              </IconButton>
-            </span>
+          <Tooltip title="Close">
+            <IconButton onClick={() => setVisible(false)} size="small">
+              <CloseIcon sx={{ color: "white" }} />
+            </IconButton>
           </Tooltip>
-          <Tooltip title="Copy note to clipboard">
-            <span>
-              <IconButton
-                size="small"
-                onClick={handleCopy}
-                disabled={isNoteEmpty}
-              >
-                <ContentCopyIcon
-                  sx={{ color: "white", opacity: isNoteEmpty ? 0.4 : 1 }}
-                />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <IconButton size="small" onClick={onClose}>
-            <CloseIcon sx={{ color: "white" }} />
-          </IconButton>
-        </Box>
+        </HeaderButtons>
       </Header>
 
-      <NoteAreaWrapper>
-        <NoteField
+      <MessageContainer>
+        {question && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-end",
+            }}
+          >
+            <QuestionBubble sx={{ fontSize: "medium" }}>
+              {question}
+            </QuestionBubble>
+            <Tooltip title="Copy Question">
+              <IconButton
+                size="small"
+                onClick={handleCopyQuestion}
+                sx={{
+                  backgroundColor: "#e3f2fd",
+                  marginTop: "4px",
+                  marginRight: "4px",
+                  height: "28px",
+                  width: "28px",
+                }}
+              >
+                <ContentCopyIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+        {answer && (
+          <AnswerBox>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <Tooltip title="Copy Answer">
+                <IconButton
+                  size="small"
+                  onClick={handleCopy}
+                  sx={{
+                    backgroundColor: "#e3f2fd",
+                    padding: "4px",
+                    height: "28px",
+                    width: "28px",
+                  }}
+                >
+                  <ContentCopyIcon fontSize="inherit" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={isSpeaking ? "Stop Speaking" : "Speak Answer"}>
+                <IconButton
+                  size="small"
+                  onClick={() => speakText(answer)}
+                  sx={{
+                    backgroundColor: "#e3f2fd",
+                    padding: "4px",
+                    height: "28px",
+                    width: "28px",
+                    color: "#0d47a1",
+                    "&:hover": {
+                      backgroundColor: "#bbdefb",
+                    },
+                  }}
+                >
+                  {isSpeaking ? (
+                    <VolumeOffIcon fontSize="small" />
+                  ) : (
+                    <VolumeUpIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            </Box>
+
+            <Typography
+              variant="body2"
+              sx={{ whiteSpace: "pre-wrap", fontSize: "medium" }}
+            >
+              {answer}
+            </Typography>
+          </AnswerBox>
+        )}
+      </MessageContainer>
+
+      <InputSection>
+        <InputField
           fullWidth
           multiline
-          variant="outlined"
-          value={notes}
-          onChange={handleChange}
-          onFocus={() => setIsSaved(false)}
-          placeholder="Write your notes here..."
+          maxRows={4}
+          placeholder="Type your question here..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
         />
-        <EnhanceButton
-          onClick={handleEnhanceButtonClick}
-          disabled={isNoteEmpty}
-        >
-          <AutoAwesomeOutlinedIcon color="primary" />
-        </EnhanceButton>
-      </NoteAreaWrapper>
-
-      <Footer>
-        <Button
-          variant="contained"
-          onClick={handleSave}
+        <IconButton
+          onClick={handleSend}
           sx={{
-            backgroundColor: isSaved ? "#43a047" : "#e53935",
-            minWidth: "48px",
-            minHeight: "40px",
-            borderRadius: "12px",
-          }}
-        >
-          <SaveIcon />
-        </Button>
-      </Footer>
-
-      <Snackbar
-        open={triggerSnackbar.open}
-        autoHideDuration={5000}
-        onClose={triggerSnackbar.handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        TransitionComponent={(props) => <Slide {...props} direction="right" />}
-      >
-        <Alert
-          severity={triggerSnackbar.severity}
-          onClose={triggerSnackbar.handleClose}
-          action={
-            <IconButton
-              size="medium"
-              onClick={triggerSnackbar.handleClose}
-              sx={{ color: "red" }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          }
-          sx={{
-            border: "1px solid white",
-            borderRadius: "8px",
-            backgroundColor: "black",
+            backgroundColor: "#0d47a1",
             color: "white",
-            fontSize: "16px",
-            padding: "10px 20px",
+            "&:hover": { backgroundColor: "#1565c0" },
+            borderRadius: "50%",
+            width: "48px",
+            height: "48px",
           }}
         >
-          {triggerSnackbar.message}
-        </Alert>
-      </Snackbar>
-    </FloatingNotesBox>
+          <SendIcon sx={{ fontSize: "28px" }} />
+        </IconButton>
+      </InputSection>
+    </FloatingBox>
   );
-});
+};
 
-export default NotesPanel;
+export default FloatingAIChat;
