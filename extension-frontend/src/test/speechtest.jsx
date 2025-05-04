@@ -15,6 +15,20 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import { askTutorAndGetAnswer } from "../../util/DiagonalButton.util"; // Adjust path if needed
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
+import MicIcon from "@mui/icons-material/Mic";
+import { keyframes, css } from "@emotion/react";
+
+const pulse = keyframes`
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(244, 67, 54, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+  }
+`;
 
 // Styled Components
 const FloatingBox = styled(Paper)({
@@ -83,24 +97,31 @@ const QuestionBubble = styled(Box)({
 
 const InputSection = styled(Box)({
   display: "flex",
-  padding: "12px 16px",
+  padding: "10px 14px",
   borderTop: "1px solid #ccc",
-  alignItems: "flex-end",
+  alignItems: "center",
   gap: "8px",
 });
 
 const InputField = styled(TextField)({
   background: "white",
   borderRadius: "8px",
-  maxHeight: "100px",
-  overflowY: "auto",
+  fontSize: "14px",
   flexGrow: 1,
   "& .MuiInputBase-root": {
-    fontSize: "medium", // Input text size
+    padding: "6px 10px",
+    fontSize: "14px",
+    lineHeight: 1.4,
+  },
+  "& .MuiInputBase-inputMultiline": {
+    padding: 0,
+  },
+  "& .MuiInputBase-input": {
+    fontSize: "14px",
   },
   "& input::placeholder, & textarea::placeholder": {
-    fontSize: "medium",
-    color: "gray", // <-- Set placeholder color to gray
+    fontSize: "14px",
+    color: "gray",
     opacity: 1,
   },
 });
@@ -111,6 +132,10 @@ const FloatingAIChat = () => {
   const [answer, setAnswer] = useState(null);
   const [visible, setVisible] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const silenceTimer = useRef(null);
+
   const synthRef = useRef(window.speechSynthesis);
 
   const speakText = (text) => {
@@ -164,6 +189,89 @@ const FloatingAIChat = () => {
 
     setIsSpeaking(true);
     speakChunk();
+  };
+
+  const initRecognition = () => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech Recognition not supported in this browser.");
+      return null;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    return recognition;
+  };
+
+  const handleMicClick = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = initRecognition();
+    if (!recognition) return;
+
+    recognitionRef.current = recognition;
+    setIsListening(true);
+
+    let finalTranscript = input || ""; // Start with existing input if any
+    let isSpeechInProgress = false; // Flag to track if speech TTS is in progress
+
+    // Clear input field before starting recognition
+    setInput("");
+
+    const prompt = new SpeechSynthesisUtterance("Please ask your question");
+    prompt.onend = () => {
+      recognition.start();
+    };
+    window.speechSynthesis.speak(prompt);
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        interimTranscript += event.results[i][0].transcript;
+      }
+      finalTranscript += interimTranscript; // Append new transcript to previous input
+      setInput(finalTranscript); // Update input state with combined transcript
+    };
+
+    recognition.onerror = (e) => {
+      console.error("Speech recognition error", e);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      clearTimeout(silenceTimer.current);
+      setIsListening(false);
+
+      finalTranscript = finalTranscript.trim();
+
+      // Speak "OK" if there was speech input detected
+      if (finalTranscript) {
+        if (!isSpeechInProgress) {
+          isSpeechInProgress = true;
+          const confirm = new SpeechSynthesisUtterance("OK");
+          confirm.onend = () => {
+            setInput(finalTranscript); // Ensure latest input is set
+            handleSend();
+          };
+          window.speechSynthesis.speak(confirm); // Speak "OK"
+        }
+      } else {
+        const noInput = new SpeechSynthesisUtterance("No question asked");
+        window.speechSynthesis.speak(noInput); // Speak "No question asked" if no input
+      }
+    };
+
+    // Handle silence timeout
+    silenceTimer.current = setTimeout(() => {
+      recognition.stop();
+    }, 3000);
   };
 
   useEffect(() => {
@@ -245,99 +353,73 @@ const FloatingAIChat = () => {
                 onClick={handleCopyQuestion}
                 sx={{
                   backgroundColor: "#ffffffdc",
-                  color: "#8d8d8d",
-                  padding: "4px",
-                  height: "24px",
-                  width: "24px",
-                  alignSelf: "flex-start",
-                  marginTop: "2px",
+                  color: "#0d47a1",
+                  fontSize: "14px",
                 }}
               >
-                <ContentCopyIcon fontSize="inherit" />
+                <ContentCopyIcon />
               </IconButton>
             </Tooltip>
-            <Box sx={{ flex: 1, whiteSpace: "pre-wrap" }}>{question}</Box>
+            <div>{question}</div>
           </QuestionBubble>
         )}
         {answer && (
-          <AnswerBox>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <Tooltip title="Copy Answer">
-                <IconButton
-                  size="small"
-                  onClick={handleCopy}
-                  sx={{
-                    backgroundColor: "#e3f2fd",
-                    padding: "4px",
-                    height: "28px",
-                    width: "28px",
-                  }}
-                >
-                  <ContentCopyIcon fontSize="inherit" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={isSpeaking ? "Stop Speaking" : "Speak Answer"}>
-                <IconButton
-                  size="small"
-                  onClick={() => speakText(answer)}
-                  sx={{
-                    backgroundColor: "#e3f2fd",
-                    padding: "4px",
-                    height: "28px",
-                    width: "28px",
-                    color: "#8d8d8d",
-                    "&:hover": {
-                      backgroundColor: "#bbdefb",
-                    },
-                  }}
-                >
-                  {isSpeaking ? (
-                    <VolumeOffIcon fontSize="small" />
-                  ) : (
-                    <VolumeUpIcon fontSize="small" />
-                  )}
-                </IconButton>
-              </Tooltip>
-            </Box>
-
-            <Typography
-              variant="body2"
-              sx={{ whiteSpace: "pre-wrap", fontSize: "medium" }}
-            >
-              {answer}
-            </Typography>
+          <AnswerBox
+            sx={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "8px",
+            }}
+          >
+            <Tooltip title="Copy Answer">
+              <IconButton
+                size="small"
+                onClick={handleCopy}
+                sx={{
+                  backgroundColor: "#ffffffdc",
+                  color: "#0d47a1",
+                  fontSize: "14px",
+                }}
+              >
+                <ContentCopyIcon />
+              </IconButton>
+            </Tooltip>
+            <div>{answer}</div>
           </AnswerBox>
         )}
       </MessageContainer>
 
       <InputSection>
+        <Tooltip title="Use Speech Input">
+          <IconButton
+            onClick={handleMicClick}
+            sx={{
+              backgroundColor: isListening ? "green" : "#e3f2fd",
+              color: isListening ? "white" : "#0d47a1",
+              fontSize: "24px",
+              animation: isListening ? `${pulse} 1.5s infinite` : "none",
+            }}
+          >
+            <MicIcon />
+          </IconButton>
+        </Tooltip>
+
         <InputField
-          fullWidth
-          multiline
-          maxRows={4}
-          placeholder="Type your question here..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
+          onKeyPress={(e) => {
+            if (e.key === "Enter") handleSend();
           }}
+          multiline
+          rows={1}
+          maxRows={4}
+          placeholder="Ask a question..."
         />
-        <IconButton
-          onClick={handleSend}
-          sx={{
-            backgroundColor: "#0d47a1",
-            color: "white",
-            "&:hover": { backgroundColor: "#1565c0" },
-            borderRadius: "50%",
-            width: "48px",
-            height: "48px",
-          }}
-        >
-          <SendIcon sx={{ fontSize: "28px" }} />
-        </IconButton>
+        <Tooltip title="Send Message">
+          <IconButton onClick={handleSend} sx={{ color: "#0d47a1" }}>
+            <SendIcon />
+          </IconButton>
+        </Tooltip>
       </InputSection>
     </FloatingBox>
   );
