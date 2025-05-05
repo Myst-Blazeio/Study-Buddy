@@ -81,27 +81,51 @@ const QuestionBubble = styled(Box)({
   overflowWrap: "anywhere",
 });
 
-const InputSection = styled(Box)({
+const InputSection = styled(Box)(({ theme }) => ({
   display: "flex",
+  alignItems: "center",
   padding: "12px 16px",
   borderTop: "1px solid #ccc",
-  alignItems: "flex-end",
+  backgroundColor: "#f5f5f5",
   gap: "8px",
-});
+}));
 
 const InputField = styled(TextField)({
-  background: "white",
-  borderRadius: "8px",
-  maxHeight: "100px",
-  overflowY: "auto",
+  backgroundColor: "#fff",
+  borderRadius: "12px",
   flexGrow: 1,
   "& .MuiInputBase-root": {
-    fontSize: "medium", // Input text size
+    padding: "10px 14px",
+    fontSize: "medium",
+    borderRadius: "12px",
+    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)",
+  },
+  "& .MuiOutlinedInput-notchedOutline": {
+    border: "1px solid #ccc",
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#90caf9",
+  },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#1976d2",
+    boxShadow: "0 0 0 2px rgba(25, 118, 210, 0.2)",
   },
   "& input::placeholder, & textarea::placeholder": {
     fontSize: "medium",
-    color: "gray", // <-- Set placeholder color to gray
+    color: "#888",
     opacity: 1,
+  },
+});
+
+const SendButton = styled(IconButton)({
+  backgroundColor: "#1976d2",
+  color: "#fff",
+  borderRadius: "12px",
+  width: "48px",
+  height: "48px",
+  transition: "background-color 0.2s ease",
+  "&:hover": {
+    backgroundColor: "#1565c0",
   },
 });
 
@@ -325,19 +349,9 @@ const FloatingAIChat = () => {
             }
           }}
         />
-        <IconButton
-          onClick={handleSend}
-          sx={{
-            backgroundColor: "#0d47a1",
-            color: "white",
-            "&:hover": { backgroundColor: "#1565c0" },
-            borderRadius: "50%",
-            width: "48px",
-            height: "48px",
-          }}
-        >
-          <SendIcon sx={{ fontSize: "28px" }} />
-        </IconButton>
+        <SendButton onClick={handleSend}>
+          <SendIcon sx={{ fontSize: "24px" }} />
+        </SendButton>
       </InputSection>
     </FloatingBox>
   );

@@ -126,36 +126,32 @@ const InputField = styled(TextField)({
   },
 });
 
+// Keep everything above this the same
+
 const FloatingAIChat = () => {
   const [input, setInput] = useState("");
   const [question, setQuestion] = useState(null);
   const [answer, setAnswer] = useState(null);
   const [visible, setVisible] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
-  const silenceTimer = useRef(null);
-
+  const pausedDueToMic = useRef(false);
   const synthRef = useRef(window.speechSynthesis);
 
   const speakText = (text) => {
     const synth = synthRef.current;
-
     if (!text) return;
 
-    // If already speaking, stop and toggle off
-    if (isSpeaking) {
-      synth.cancel();
-      setIsSpeaking(false);
-      return;
-    }
+    // Cancel any ongoing speech
+    synth.cancel();
 
-    // Split into smaller chunks by sentence
     const sentences = text.match(/[^.!?]+[.!?]*|\s+/g)?.filter(Boolean) || [];
     const maxChunkSize = 180;
     const chunks = [];
-
     let chunk = "";
+
     for (const sentence of sentences) {
       if ((chunk + sentence).length > maxChunkSize) {
         chunks.push(chunk.trim());
@@ -169,7 +165,7 @@ const FloatingAIChat = () => {
     let index = 0;
 
     const speakChunk = () => {
-      if (index >= chunks.length) {
+      if (index >= chunks.length || isPaused) {
         setIsSpeaking(false);
         return;
       }
@@ -177,7 +173,7 @@ const FloatingAIChat = () => {
       const utterance = new SpeechSynthesisUtterance(chunks[index]);
       utterance.onend = () => {
         index++;
-        speakChunk(); // Speak the next chunk
+        speakChunk();
       };
       utterance.onerror = () => {
         console.error("Speech error on chunk:", index);
@@ -188,56 +184,69 @@ const FloatingAIChat = () => {
     };
 
     setIsSpeaking(true);
+    setIsPaused(false);
     speakChunk();
   };
 
-  const initRecognition = () => {
+  const toggleSpeech = () => {
+    const synth = synthRef.current;
+    if (!isSpeaking) {
+      speakText(answer);
+    } else if (!isPaused) {
+      synth.pause();
+      setIsPaused(true);
+    } else {
+      synth.resume();
+      setIsPaused(false);
+    }
+  };
+
+  const handleMicClick = () => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Speech Recognition not supported in this browser.");
-      return null;
+      return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    return recognition;
-  };
-
-  const handleMicClick = () => {
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
       return;
     }
 
-    const recognition = initRecognition();
-    if (!recognition) return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
 
     recognitionRef.current = recognition;
     setIsListening(true);
-
-    let finalTranscript = input || ""; // Start with existing input if any
-    let isSpeechInProgress = false; // Flag to track if speech TTS is in progress
-
-    // Clear input field before starting recognition
     setInput("");
 
-    const prompt = new SpeechSynthesisUtterance("Please ask your question");
-    prompt.onend = () => {
-      recognition.start();
-    };
+    if (isSpeaking && !isPaused) {
+      synthRef.current.pause();
+      pausedDueToMic.current = true;
+    }
+
+    const prompt = new SpeechSynthesisUtterance("Listening...");
+    prompt.onend = () => recognition.start();
     window.speechSynthesis.speak(prompt);
 
     recognition.onresult = (event) => {
       let interimTranscript = "";
+      let finalTranscript = "";
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        interimTranscript += event.results[i][0].transcript;
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
       }
-      finalTranscript += interimTranscript; // Append new transcript to previous input
-      setInput(finalTranscript); // Update input state with combined transcript
+
+      setInput((finalTranscript + interimTranscript).trim());
     };
 
     recognition.onerror = (e) => {
@@ -246,32 +255,23 @@ const FloatingAIChat = () => {
     };
 
     recognition.onend = () => {
-      clearTimeout(silenceTimer.current);
       setIsListening(false);
+      if (pausedDueToMic.current && isPaused) {
+        synthRef.current.resume();
+        setIsPaused(false);
+        pausedDueToMic.current = false;
+      }
 
-      finalTranscript = finalTranscript.trim();
-
-      // Speak "OK" if there was speech input detected
-      if (finalTranscript) {
-        if (!isSpeechInProgress) {
-          isSpeechInProgress = true;
-          const confirm = new SpeechSynthesisUtterance("OK");
-          confirm.onend = () => {
-            setInput(finalTranscript); // Ensure latest input is set
-            handleSend();
-          };
-          window.speechSynthesis.speak(confirm); // Speak "OK"
-        }
+      const finalText = input.trim();
+      if (finalText) {
+        const confirm = new SpeechSynthesisUtterance("OK");
+        confirm.onend = () => handleSend();
+        window.speechSynthesis.speak(confirm);
       } else {
         const noInput = new SpeechSynthesisUtterance("No question asked");
-        window.speechSynthesis.speak(noInput); // Speak "No question asked" if no input
+        window.speechSynthesis.speak(noInput);
       }
     };
-
-    // Handle silence timeout
-    silenceTimer.current = setTimeout(() => {
-      recognition.stop();
-    }, 3000);
   };
 
   useEffect(() => {
@@ -301,12 +301,8 @@ const FloatingAIChat = () => {
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(answer);
-  };
-  const handleCopyQuestion = () => {
-    navigator.clipboard.writeText(question);
-  };
+  const handleCopy = () => navigator.clipboard.writeText(answer);
+  const handleCopyQuestion = () => navigator.clipboard.writeText(question);
 
   const handleReset = () => {
     setQuestion(null);
@@ -339,14 +335,7 @@ const FloatingAIChat = () => {
 
       <MessageContainer>
         {question && (
-          <QuestionBubble
-            sx={{
-              fontSize: "medium",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "8px",
-            }}
-          >
+          <QuestionBubble>
             <Tooltip title="Copy Question">
               <IconButton
                 size="small"
@@ -354,7 +343,6 @@ const FloatingAIChat = () => {
                 sx={{
                   backgroundColor: "#ffffffdc",
                   color: "#0d47a1",
-                  fontSize: "14px",
                 }}
               >
                 <ContentCopyIcon />
@@ -364,13 +352,7 @@ const FloatingAIChat = () => {
           </QuestionBubble>
         )}
         {answer && (
-          <AnswerBox
-            sx={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "8px",
-            }}
-          >
+          <AnswerBox>
             <Tooltip title="Copy Answer">
               <IconButton
                 size="small"
@@ -378,7 +360,6 @@ const FloatingAIChat = () => {
                 sx={{
                   backgroundColor: "#ffffffdc",
                   color: "#0d47a1",
-                  fontSize: "14px",
                 }}
               >
                 <ContentCopyIcon />
@@ -396,11 +377,22 @@ const FloatingAIChat = () => {
             sx={{
               backgroundColor: isListening ? "green" : "#e3f2fd",
               color: isListening ? "white" : "#0d47a1",
-              fontSize: "24px",
               animation: isListening ? `${pulse} 1.5s infinite` : "none",
             }}
           >
             <MicIcon />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Speak / Pause / Resume Answer">
+          <IconButton
+            onClick={toggleSpeech}
+            sx={{
+              backgroundColor: "#e3f2fd",
+              color: "#0d47a1",
+            }}
+          >
+            {isSpeaking && !isPaused ? <VolumeOffIcon /> : <VolumeUpIcon />}
           </IconButton>
         </Tooltip>
 
