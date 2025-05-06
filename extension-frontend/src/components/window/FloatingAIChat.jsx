@@ -9,12 +9,13 @@ import {
   Paper,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import MicIcon from "@mui/icons-material/Mic";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { askTutorAndGetAnswer } from "../../util/DiagonalButton.util"; // Adjust path if needed
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
+import { askTutorAndGetAnswer } from "../../util/DiagonalButton.util";
 
 // Styled Components
 const FloatingBox = styled(Paper)({
@@ -117,17 +118,32 @@ const InputField = styled(TextField)({
   },
 });
 
-const SendButton = styled(IconButton)({
-  backgroundColor: "#1976d2",
-  color: "#fff",
-  borderRadius: "12px",
+const CircularButton = styled(IconButton)(({ active }) => ({
+  backgroundColor: "#e3f2fd",
+  color: "#1900ff",
   width: "48px",
   height: "48px",
+  borderRadius: "50%",
   transition: "background-color 0.2s ease",
+  position: "relative",
   "&:hover": {
-    backgroundColor: "#1565c0",
+    backgroundColor: "#bbdefb",
   },
-});
+  ...(active && {
+    animation: "pulse 1.2s infinite ease-in-out",
+  }),
+  "@keyframes pulse": {
+    "0%": {
+      boxShadow: "0 0 0 0 rgba(25, 118, 210, 0.4)",
+    },
+    "70%": {
+      boxShadow: "0 0 0 12px rgba(25, 118, 210, 0)",
+    },
+    "100%": {
+      boxShadow: "0 0 0 0 rgba(25, 118, 210, 0)",
+    },
+  },
+}));
 
 const FloatingAIChat = () => {
   const [input, setInput] = useState("");
@@ -135,21 +151,20 @@ const FloatingAIChat = () => {
   const [answer, setAnswer] = useState(null);
   const [visible, setVisible] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [listening, setListening] = useState(false);
   const synthRef = useRef(window.speechSynthesis);
+  const recognitionRef = useRef(null);
 
   const speakText = (text) => {
     const synth = synthRef.current;
-
     if (!text) return;
 
-    // If already speaking, stop and toggle off
     if (isSpeaking) {
       synth.cancel();
       setIsSpeaking(false);
       return;
     }
 
-    // Split into smaller chunks by sentence
     const sentences = text.match(/[^.!?]+[.!?]*|\s+/g)?.filter(Boolean) || [];
     const maxChunkSize = 180;
     const chunks = [];
@@ -166,23 +181,20 @@ const FloatingAIChat = () => {
     if (chunk.trim()) chunks.push(chunk.trim());
 
     let index = 0;
-
     const speakChunk = () => {
       if (index >= chunks.length) {
         setIsSpeaking(false);
         return;
       }
-
       const utterance = new SpeechSynthesisUtterance(chunks[index]);
       utterance.onend = () => {
         index++;
-        speakChunk(); // Speak the next chunk
+        speakChunk();
       };
       utterance.onerror = () => {
         console.error("Speech error on chunk:", index);
         setIsSpeaking(false);
       };
-
       synth.speak(utterance);
     };
 
@@ -197,7 +209,61 @@ const FloatingAIChat = () => {
       setQuestion(savedQ);
       setAnswer(savedA);
     }
+
+    if (!("webkitSpeechRecognition" in window)) {
+      console.warn("Speech Recognition not supported");
+      return;
+    }
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false; // keep false if you want one-shot detection
+
+    let finalTranscript = "";
+
+    recognition.onstart = () => {
+      setListening(true);
+      finalTranscript = "";
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      setInput(finalTranscript.trim()); // ensure final result persists
+    };
+
+    recognition.onerror = (e) => {
+      console.error("Speech recognition error:", e);
+      setListening(false);
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + " ";
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+      setInput((finalTranscript + interimTranscript).trim());
+    };
+
+    recognitionRef.current = recognition;
   }, []);
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current) return;
+
+    if (listening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -217,19 +283,15 @@ const FloatingAIChat = () => {
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(answer);
-  };
-  const handleCopyQuestion = () => {
-    navigator.clipboard.writeText(question);
-  };
-
   const handleReset = () => {
     setQuestion(null);
     setAnswer(null);
     localStorage.removeItem("lastQuestion");
     localStorage.removeItem("lastAnswer");
   };
+
+  const handleCopy = () => navigator.clipboard.writeText(answer);
+  const handleCopyQuestion = () => navigator.clipboard.writeText(question);
 
   if (!visible) return null;
 
@@ -255,32 +317,33 @@ const FloatingAIChat = () => {
 
       <MessageContainer>
         {question && (
-          <QuestionBubble
-            sx={{
-              fontSize: "medium",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "8px",
-            }}
-          >
-            <Tooltip title="Copy Question">
-              <IconButton
-                size="small"
-                onClick={handleCopyQuestion}
-                sx={{
-                  backgroundColor: "#ffffffdc",
-                  color: "#8d8d8d",
-                  padding: "4px",
-                  height: "24px",
-                  width: "24px",
-                  alignSelf: "flex-start",
-                  marginTop: "2px",
-                }}
+          <QuestionBubble>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="body1"
+                sx={{ fontSize: "medium", color: "white", flex: 1 }}
               >
-                <ContentCopyIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-            <Box sx={{ flex: 1, whiteSpace: "pre-wrap" }}>{question}</Box>
+                {question}
+              </Typography>
+              <Tooltip title="Copy Question">
+                <IconButton
+                  size="small"
+                  onClick={handleCopyQuestion}
+                  sx={{
+                    backgroundColor: "#ffffff50",
+                    color: "white",
+                    padding: "4px",
+                    height: "28px",
+                    width: "28px",
+                    "&:hover": {
+                      backgroundColor: "#ffffff80",
+                    },
+                  }}
+                >
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </QuestionBubble>
         )}
         {answer && (
@@ -342,6 +405,7 @@ const FloatingAIChat = () => {
           placeholder="Type your question here..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          disabled={listening}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -349,9 +413,16 @@ const FloatingAIChat = () => {
             }
           }}
         />
-        <SendButton onClick={handleSend}>
-          <SendIcon sx={{ fontSize: "24px" }} />
-        </SendButton>
+        <Tooltip title={listening ? "Stop Listening" : "Speak"}>
+          <CircularButton onClick={handleMicClick} active={listening}>
+            <MicIcon />
+          </CircularButton>
+        </Tooltip>
+        <Tooltip title="Send">
+          <CircularButton onClick={handleSend}>
+            <SendIcon />
+          </CircularButton>
+        </Tooltip>
       </InputSection>
     </FloatingBox>
   );

@@ -9,26 +9,13 @@ import {
   Paper,
 } from "@mui/material";
 import SendIcon from "@mui/icons-material/Send";
+import MicIcon from "@mui/icons-material/Mic";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { askTutorAndGetAnswer } from "../../util/DiagonalButton.util"; // Adjust path if needed
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import VolumeOffIcon from "@mui/icons-material/VolumeOff";
-import MicIcon from "@mui/icons-material/Mic";
-import { keyframes, css } from "@emotion/react";
-
-const pulse = keyframes`
-  0% {
-    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(244, 67, 54, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
-  }
-`;
+import { askTutorAndGetAnswer } from "../../util/DiagonalButton.util";
 
 // Styled Components
 const FloatingBox = styled(Paper)({
@@ -95,38 +82,68 @@ const QuestionBubble = styled(Box)({
   overflowWrap: "anywhere",
 });
 
-const InputSection = styled(Box)({
+const InputSection = styled(Box)(({ theme }) => ({
   display: "flex",
-  padding: "10px 14px",
-  borderTop: "1px solid #ccc",
   alignItems: "center",
+  padding: "12px 16px",
+  borderTop: "1px solid #ccc",
+  backgroundColor: "#f5f5f5",
   gap: "8px",
-});
+}));
 
 const InputField = styled(TextField)({
-  background: "white",
-  borderRadius: "8px",
-  fontSize: "14px",
+  backgroundColor: "#fff",
+  borderRadius: "12px",
   flexGrow: 1,
   "& .MuiInputBase-root": {
-    padding: "6px 10px",
-    fontSize: "14px",
-    lineHeight: 1.4,
+    padding: "10px 14px",
+    fontSize: "medium",
+    borderRadius: "12px",
+    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)",
   },
-  "& .MuiInputBase-inputMultiline": {
-    padding: 0,
+  "& .MuiOutlinedInput-notchedOutline": {
+    border: "1px solid #ccc",
   },
-  "& .MuiInputBase-input": {
-    fontSize: "14px",
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#90caf9",
+  },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#1976d2",
+    boxShadow: "0 0 0 2px rgba(25, 118, 210, 0.2)",
   },
   "& input::placeholder, & textarea::placeholder": {
-    fontSize: "14px",
-    color: "gray",
+    fontSize: "medium",
+    color: "#888",
     opacity: 1,
   },
 });
 
-// Keep everything above this the same
+const CircularButton = styled(IconButton)(({ active }) => ({
+  backgroundColor: "#e3f2fd",
+  color: "#1900ff",
+  width: "48px",
+  height: "48px",
+  borderRadius: "50%",
+  transition: "background-color 0.2s ease",
+  position: "relative",
+  "&:hover": {
+    backgroundColor: "#bbdefb",
+  },
+  ...(active && {
+    animation: "pulse 1.2s infinite ease-in-out",
+  }),
+  "@keyframes pulse": {
+    "0%": {
+      boxShadow: "0 0 0 0 rgba(25, 118, 210, 0.4)",
+    },
+    "70%": {
+      boxShadow: "0 0 0 12px rgba(25, 118, 210, 0)",
+    },
+    "100%": {
+      boxShadow: "0 0 0 0 rgba(25, 118, 210, 0)",
+    },
+  },
+}));
 
 const FloatingAIChat = () => {
   const [input, setInput] = useState("");
@@ -134,24 +151,25 @@ const FloatingAIChat = () => {
   const [answer, setAnswer] = useState(null);
   const [visible, setVisible] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef(null);
-  const pausedDueToMic = useRef(false);
+  const [listening, setListening] = useState(false);
   const synthRef = useRef(window.speechSynthesis);
+  const recognitionRef = useRef(null);
 
   const speakText = (text) => {
     const synth = synthRef.current;
     if (!text) return;
 
-    // Cancel any ongoing speech
-    synth.cancel();
+    if (isSpeaking) {
+      synth.cancel();
+      setIsSpeaking(false);
+      return;
+    }
 
     const sentences = text.match(/[^.!?]+[.!?]*|\s+/g)?.filter(Boolean) || [];
     const maxChunkSize = 180;
     const chunks = [];
-    let chunk = "";
 
+    let chunk = "";
     for (const sentence of sentences) {
       if ((chunk + sentence).length > maxChunkSize) {
         chunks.push(chunk.trim());
@@ -163,13 +181,11 @@ const FloatingAIChat = () => {
     if (chunk.trim()) chunks.push(chunk.trim());
 
     let index = 0;
-
     const speakChunk = () => {
-      if (index >= chunks.length || isPaused) {
+      if (index >= chunks.length) {
         setIsSpeaking(false);
         return;
       }
-
       const utterance = new SpeechSynthesisUtterance(chunks[index]);
       utterance.onend = () => {
         index++;
@@ -179,99 +195,11 @@ const FloatingAIChat = () => {
         console.error("Speech error on chunk:", index);
         setIsSpeaking(false);
       };
-
       synth.speak(utterance);
     };
 
     setIsSpeaking(true);
-    setIsPaused(false);
     speakChunk();
-  };
-
-  const toggleSpeech = () => {
-    const synth = synthRef.current;
-    if (!isSpeaking) {
-      speakText(answer);
-    } else if (!isPaused) {
-      synth.pause();
-      setIsPaused(true);
-    } else {
-      synth.resume();
-      setIsPaused(false);
-    }
-  };
-
-  const handleMicClick = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Speech Recognition not supported in this browser.");
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognitionRef.current = recognition;
-    setIsListening(true);
-    setInput("");
-
-    if (isSpeaking && !isPaused) {
-      synthRef.current.pause();
-      pausedDueToMic.current = true;
-    }
-
-    const prompt = new SpeechSynthesisUtterance("Listening...");
-    prompt.onend = () => recognition.start();
-    window.speechSynthesis.speak(prompt);
-
-    recognition.onresult = (event) => {
-      let interimTranscript = "";
-      let finalTranscript = "";
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
-      }
-
-      setInput((finalTranscript + interimTranscript).trim());
-    };
-
-    recognition.onerror = (e) => {
-      console.error("Speech recognition error", e);
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-      if (pausedDueToMic.current && isPaused) {
-        synthRef.current.resume();
-        setIsPaused(false);
-        pausedDueToMic.current = false;
-      }
-
-      const finalText = input.trim();
-      if (finalText) {
-        const confirm = new SpeechSynthesisUtterance("OK");
-        confirm.onend = () => handleSend();
-        window.speechSynthesis.speak(confirm);
-      } else {
-        const noInput = new SpeechSynthesisUtterance("No question asked");
-        window.speechSynthesis.speak(noInput);
-      }
-    };
   };
 
   useEffect(() => {
@@ -281,7 +209,61 @@ const FloatingAIChat = () => {
       setQuestion(savedQ);
       setAnswer(savedA);
     }
+
+    if (!("webkitSpeechRecognition" in window)) {
+      console.warn("Speech Recognition not supported");
+      return;
+    }
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = false; // keep false if you want one-shot detection
+
+    let finalTranscript = "";
+
+    recognition.onstart = () => {
+      setListening(true);
+      finalTranscript = "";
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      setInput(finalTranscript.trim()); // ensure final result persists
+    };
+
+    recognition.onerror = (e) => {
+      console.error("Speech recognition error:", e);
+      setListening(false);
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + " ";
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+      setInput((finalTranscript + interimTranscript).trim());
+    };
+
+    recognitionRef.current = recognition;
   }, []);
+
+  const handleMicClick = () => {
+    if (!recognitionRef.current) return;
+
+    if (listening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -301,15 +283,15 @@ const FloatingAIChat = () => {
     }
   };
 
-  const handleCopy = () => navigator.clipboard.writeText(answer);
-  const handleCopyQuestion = () => navigator.clipboard.writeText(question);
-
   const handleReset = () => {
     setQuestion(null);
     setAnswer(null);
     localStorage.removeItem("lastQuestion");
     localStorage.removeItem("lastAnswer");
   };
+
+  const handleCopy = () => navigator.clipboard.writeText(answer);
+  const handleCopyQuestion = () => navigator.clipboard.writeText(question);
 
   if (!visible) return null;
 
@@ -336,81 +318,110 @@ const FloatingAIChat = () => {
       <MessageContainer>
         {question && (
           <QuestionBubble>
-            <Tooltip title="Copy Question">
-              <IconButton
-                size="small"
-                onClick={handleCopyQuestion}
-                sx={{
-                  backgroundColor: "#ffffffdc",
-                  color: "#0d47a1",
-                }}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="body1"
+                sx={{ fontSize: "medium", color: "white", flex: 1 }}
               >
-                <ContentCopyIcon />
-              </IconButton>
-            </Tooltip>
-            <div>{question}</div>
+                {question}
+              </Typography>
+              <Tooltip title="Copy Question">
+                <IconButton
+                  size="small"
+                  onClick={handleCopyQuestion}
+                  sx={{
+                    backgroundColor: "#ffffff50",
+                    color: "white",
+                    padding: "4px",
+                    height: "28px",
+                    width: "28px",
+                    "&:hover": {
+                      backgroundColor: "#ffffff80",
+                    },
+                  }}
+                >
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </QuestionBubble>
         )}
         {answer && (
           <AnswerBox>
-            <Tooltip title="Copy Answer">
-              <IconButton
-                size="small"
-                onClick={handleCopy}
-                sx={{
-                  backgroundColor: "#ffffffdc",
-                  color: "#0d47a1",
-                }}
-              >
-                <ContentCopyIcon />
-              </IconButton>
-            </Tooltip>
-            <div>{answer}</div>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <Tooltip title="Copy Answer">
+                <IconButton
+                  size="small"
+                  onClick={handleCopy}
+                  sx={{
+                    backgroundColor: "#e3f2fd",
+                    padding: "4px",
+                    height: "28px",
+                    width: "28px",
+                  }}
+                >
+                  <ContentCopyIcon fontSize="inherit" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={isSpeaking ? "Stop Speaking" : "Speak Answer"}>
+                <IconButton
+                  size="small"
+                  onClick={() => speakText(answer)}
+                  sx={{
+                    backgroundColor: "#e3f2fd",
+                    padding: "4px",
+                    height: "28px",
+                    width: "28px",
+                    color: "#8d8d8d",
+                    "&:hover": {
+                      backgroundColor: "#bbdefb",
+                    },
+                  }}
+                >
+                  {isSpeaking ? (
+                    <VolumeOffIcon fontSize="small" />
+                  ) : (
+                    <VolumeUpIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            </Box>
+
+            <Typography
+              variant="body2"
+              sx={{ whiteSpace: "pre-wrap", fontSize: "medium" }}
+            >
+              {answer}
+            </Typography>
           </AnswerBox>
         )}
       </MessageContainer>
 
       <InputSection>
-        <Tooltip title="Use Speech Input">
-          <IconButton
-            onClick={handleMicClick}
-            sx={{
-              backgroundColor: isListening ? "green" : "#e3f2fd",
-              color: isListening ? "white" : "#0d47a1",
-              animation: isListening ? `${pulse} 1.5s infinite` : "none",
-            }}
-          >
-            <MicIcon />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title="Speak / Pause / Resume Answer">
-          <IconButton
-            onClick={toggleSpeech}
-            sx={{
-              backgroundColor: "#e3f2fd",
-              color: "#0d47a1",
-            }}
-          >
-            {isSpeaking && !isPaused ? <VolumeOffIcon /> : <VolumeUpIcon />}
-          </IconButton>
-        </Tooltip>
-
         <InputField
+          fullWidth
+          multiline
+          maxRows={4}
+          placeholder="Type your question here..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") handleSend();
+          disabled={listening}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
           }}
-          multiline
-          rows={1}
-          maxRows={4}
-          placeholder="Ask a question..."
         />
-        <Tooltip title="Send Message">
-          <IconButton onClick={handleSend} sx={{ color: "#0d47a1" }}>
+        <Tooltip title={listening ? "Stop Listening" : "Speak"}>
+          <CircularButton onClick={handleMicClick} active={listening}>
+            <MicIcon />
+          </CircularButton>
+        </Tooltip>
+        <Tooltip title="Send">
+          <CircularButton onClick={handleSend}>
             <SendIcon />
-          </IconButton>
+          </CircularButton>
         </Tooltip>
       </InputSection>
     </FloatingBox>
